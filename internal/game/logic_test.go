@@ -113,3 +113,27 @@ func TestNewGame_Basics(t *testing.T) {
 
 	assert.GreaterOrEqual(t, len(g.Log), 3)
 }
+
+func TestNewGame_SeedDeterminism(t *testing.T) {
+	d1 := makeDeck(20)
+	d2 := makeDeck(20)
+
+	opts := Options{
+		StartingLife: 20,
+		StartingHand: 5,
+		MaxEnergy:    10,
+		Seed:         999,
+	}
+
+	g1, err := NewGame("p1", "p2", d1, d2, opts)
+	require.NoError(t, err)
+	g2, err := NewGame("p1", "p2", d1, d2, opts)
+	require.NoError(t, err)
+
+	assert.Equal(t, collectIDs(g1.Players[0].Hand), collectIDs(g2.Players[0].Hand))
+	assert.Equal(t, collectIDs(g1.Players[0].Hand), collectIDs(g2.Players[0].Hand))
+	assert.Equal(t, collectIDs(g1.Players[0].Deck), collectIDs(g2.Players[0].Deck))
+	assert.Equal(t, collectIDs(g1.Players[0].Deck), collectIDs(g2.Players[0].Deck))
+
+	assert.Equal(t, g1.ID, g2.ID)
+}
