@@ -1,0 +1,19 @@
+[
+  {
+    "id": "c_grizzly_bear",
+    "name": "Grizzly Bear",
+    "type": "creature",
+    "cost": 2,
+    "attack": 2,
+    "health": 2,
+    "text": "A basic creature."
+  },
+  {
+    "id": "s_firebolt",
+    "name": "Fire Bolt",
+    "type": "spell",
+    "cost": 1,
+    "text": "Deal 2 damage to any target.",
+    "spell_effect": { "kind": "damage", "amount": 2, "target": "any_creature" }
+  }
+]
