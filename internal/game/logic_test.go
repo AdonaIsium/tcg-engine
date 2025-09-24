@@ -13,7 +13,7 @@ import (
 // Helper functions
 func makeDeck(n int) []cards.CardDef {
 	deck := make([]cards.CardDef, 0, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if i%3 == 2 {
 			deck = append(deck, cards.CardDef{
 				ID:   "s_firebolt_" + strconv.Itoa(i),
@@ -72,6 +72,8 @@ func TestNewGame_Basics(t *testing.T) {
 
 	assert.Equal(t, 20, p0.Life)
 	assert.Equal(t, 20, p1.Life)
+
+	// NOTE: these are looking for the *player* energy/max energy, not the *game* energy/max energy
 	assert.Zero(t, p0.Energy)
 	assert.Zero(t, p0.MaxEnergy)
 	assert.Zero(t, p1.Energy)
