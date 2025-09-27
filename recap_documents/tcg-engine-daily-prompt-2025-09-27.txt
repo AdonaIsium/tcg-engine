@@ -1,0 +1,85 @@
+# Digital TCG Engine — Daily Prompt (Status & Plan)
+**Date:** 2025-09-27 (America/Chicago)
+
+Use this exact prompt to continue tomorrow.
+
+---
+
+## 🧭 Context (copy into the chat as-is)
+You are my copilot on a learning-focused Go project: a **Digital Trading Card Game engine + REST API**. We are deliberately building it incrementally with tests-first where possible, keeping scope to an MVP: play a full duel with 10–20 hardcoded cards, minimal rules, JSON state, and a tiny AI later. Avoid full function bodies unless I explicitly ask; provide **structs fully**, and for functions give **signatures + step-by-step implementation guidance**. Tests use **testify**.
+
+---
+
+## ✅ Current Status (as of 2025-09-27)
+- **Project skeleton** in place:
+  - `cmd/server/main.go` with `/health` only.
+  - Packages:
+    - `internal/cards` → `CardDef`, `Effect`, types (`Type`, `EffectKind`, `TargetKind`).
+    - `internal/game` → runtime state (`Game`, `PlayerState`, `CardInstance`, `Options`, `Event`), turn logic.
+    - `pkg/logger` (basic helper).
+- **Implemented in `internal/game`:**
+  - `NewGame(...)` (builds decks → instances, shuffles deterministically with seed, deals opening hands, seeds event log).
+  - `StartTurn()` (increments turn, ramps & refills energy, optional draw via `FirstPlayerDraws`, refreshes creatures, logs).
+  - `EndTurn()` (swaps active player; logging).
+  - Helpers: `CurrentPlayer()`, `Opponent()`, `Draw(ps, n)`, `refreshCreatures(ps)`, `log(...)`.
+- **Decisions / Invariants:**
+  - *Top of deck* is the **end of the slice** (O(1) pops).
+  - Energy model: `Options.MaxEnergy` is a **ceiling**, `PlayerState.MaxEnergy` is **current capacity** (starts 0, ramps each turn), and `Energy` refills to capacity at start of turn.
+  - First-turn draw: controlled by `Options.FirstPlayerDraws` (applies only to the very first turn of player 0).
+  - Logs are stored as `[]Event` (no stdout logging in engine code).
+  - Effects are a **closed set** for MVP (no scripting/stack yet).
+- **Tests (all passing):**
+  - `TestNewGame_Basics`
+  - `TestNewGame_SeedDeterminism`
+  - `TestNewGame_DifferentSeedsDifferentShuffle`
+  - `TestNewGame_InvalidInputs`
+  - `TestNewGame_InstanceIDUniqueness`
+  - `StartTurn` tests for energy ramp, draw/skip, and refresh behavior
+
+Run with:
+```bash
+go test -v ./internal/game
+```
+
+---
+
+## 🎯 What We Will Do Next (priority order)
+1) **EndTurn tests** (mirror StartTurn style; assert only `Active` flips, no draw/energy change).  
+2) **Action API scaffolding in `game`:**
+   - Signatures + tests-first for:
+     - `CanPlayCard(playerID string, handIdx int, target *TargetRef) error`
+     - `PlayCard(playerID string, handIdx int, target *TargetRef) error`
+   - Minimal legality: turn ownership, index bounds, energy cost, target validity for spells, creature board placement.  
+3) **Combat scaffolding:**
+   - `CanAttack(playerID string, attacker InstanceID, target AttackTarget) error`
+   - `Attack(playerID string, attacker InstanceID, target AttackTarget) error`
+   - Simultaneous damage for creature vs creature; mark exhausted; sweep deaths; win check.  
+4) **Effect resolver (spells)**
+   - `ResolveEffect(sourcePlayer string, sourceCard *cards.CardDef, target *TargetRef) error`  
+   - Implement only MVP kinds (damage, heal, draw_cards, buff_attack, buff_health).  
+5) **Win condition plumbing**
+   - `IsGameOver() (bool, winnerID string)` with simple rule (life ≤ 0 → opponent wins; define tie handling).  
+6) **Edge-case passes + tidy**
+   - Illegal moves return the right `error` vars; more log breadcrumbs where helpful.
+
+*(API layer, persistence, and AI are intentionally later steps.)*
+
+---
+
+## 📝 Today’s Work Plan (paste-ready)
+- Write `EndTurn` tests with testify (expect only `Active` changes).
+- Add test stubs for `CanPlayCard/PlayCard` (table-driven, illegal/legal cases).
+- Add test stubs for `CanAttack/Attack` happy path + a couple illegal cases.
+- If time remains: implement `CanPlayCard` **only**; leave `PlayCard` for after tests turn green.
+
+---
+
+## 📣 Preferences and Constraints
+- Keep scope to MVP; no stack/trigger system yet; no fatigue when deck is empty.
+- Use **testify** (`require` for setup, `assert` for invariants).
+- Keep `Draw` logging consistent (engine-level `g.log`, avoid `log.Print`).
+
+---
+
+## ✅ What I’ll Paste to Start the Session
+“**Status recap**: All Step 1–2 scaffolding plus `NewGame`, turn flow, and tests are passing. Ready to TDD `EndTurn`, then scaffold play/attack APIs. Same rules as before: give function signatures and exact implementation steps; hold full bodies unless I ask. Use testify in tests.”

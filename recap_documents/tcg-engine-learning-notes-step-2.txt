@@ -1,0 +1,134 @@
+# Digital TCG Engine — Learning Notes (Through Step 2)
+
+**Date:** 2025-09-27
+
+These notes explain what we’ve built, why we built it this way, and how it fits into the overall plan.
+
+---
+
+## 1) Architecture Overview
+
+**Packages**
+- `internal/cards`: *Design-time* card data (`CardDef`, `Effect`, enums). This is the “library” of possible cards.
+- `internal/game`: *Runtime* engine — players, decks, hands, board, turns, actions, logs.
+- `cmd/server`: thin REST entrypoint (only `/health` today).
+- `pkg/logger`: simple logger helper (not tightly coupled).
+
+**Key separation**
+- **CardDef** (immutable template) vs **CardInstance** (per-copy state in a match).  
+  We store a pointer to the `CardDef` inside each `CardInstance` so multiple copies share the same definition but have independent runtime stats (HP, buffs, flags).
+
+---
+
+## 2) State Model & Zones
+
+**Zones**
+- `Deck`, `Hand`, `Board`, `Graveyard` (strings/enums). MVP has *no board size cap* and *no stack*.
+
+**Deck behavior**
+- “Top of deck” is the **end of the slice** → drawing is `O(1)` (pop tail and append to hand).
+
+**Events/Logs**
+- Every meaningful thing appends an `Event` to `Game.Log`. This gives crisp tests, replayability hooks, and debuggability without stdout noise.
+
+---
+
+## 3) Randomness & Determinism
+
+- We wrap RNG behind a tiny `randSource` so `NewGame` shuffles deterministically with a fixed seed.  
+- **Why:** reproducible tests, easier debugging, and reliable game IDs if derived from the RNG.
+
+---
+
+## 4) Energy & Turn Model
+
+**Energy concepts**
+- `Options.MaxEnergy`: **ceiling** (e.g., 10).
+- `PlayerState.MaxEnergy`: **current capacity**, starts at 0 and ramps by +1 each of the player’s turns (capped by ceiling).
+- `PlayerState.Energy`: **current filled amount**, refilled to `MaxEnergy` at start of the turn.
+
+**Turn lifecycle (MVP)**
+1. `StartTurn()`
+   - Increment turn counter (first ever call sets `Turn=1`).
+   - Ramp capacity, then refill energy.
+   - Draw 1 card (skip only if first turn of starting player and `FirstPlayerDraws=false`).
+   - Ready creatures: clear `Exhausted`, clear `SummoningSick`.
+   - Log “start” (and “draw” via helper).
+2. `EndTurn()`
+   - Swap `Active` player. No draws/energy here.
+
+This ordering keeps rule interactions predictable and tests straightforward.
+
+---
+
+## 5) Tests & Practices
+
+**We use** `testify`:
+- `require` for setup failures (stop early).
+- `assert` for invariants.
+
+**What we test so far**
+- **`NewGame` basics:** hands, decks, life, zeroed energy, runtime fields initialized.
+- **Seed determinism:** same seed → identical hands/decks/IDs; different seeds → different orders.
+- **Input validation:** empty IDs/decks error, negative starting hand defaults.
+- **Instance uniqueness:** every card copy has a unique `InstanceID`.
+- **StartTurn:** energy ramp/refill; first-turn draw skip; creature refresh.
+
+**Why these tests?**
+- They encode *invariants* and *intent* while keeping implementations flexible. Future refactors can change internals without breaking behavior.
+
+---
+
+## 6) Design Tradeoffs (MVP-friendly)
+
+- **Closed effect set** (no scripting): keep engine small and testable.
+- **No stack/interrupts**: linear, predictable flow; can add an effect queue later.
+- **No fatigue on empty deck** (yet): simpler; we just log and draw 0.
+- **Unlimited board size** (for now): avoids early complexity.
+
+These decisions let you reach “full duel” quickly, then extend with confidence.
+
+---
+
+## 7) Where This Goes Next
+
+**Immediate next steps**
+- `EndTurn` tests (sanity).
+- Action scaffolding: `CanPlayCard`/`PlayCard` (energy, type checks, targets).
+- Combat scaffolding: `CanAttack`/`Attack` (simultaneous damage, deaths, win check).
+- `ResolveEffect` for basic spells (damage/heal/draw/buffs).
+
+**Later phases**
+- REST API endpoints (`/game`, `/play`, `/state`).
+- SQLite persistence of turns/states.
+- Minimal AI (greedy/heuristic).
+
+---
+
+## 8) Helpful mental models
+
+- **“Design vs Runtime”**: `CardDef` is a template; `CardInstance` is a living piece with HP and flags.
+- **“Ceiling vs Capacity vs Current”**: Options ceiling → player capacity → current filled energy.
+- **“O(1) draw”**: end-of-slice pop for deck top.
+- **“Logs > prints”**: event logs are testable artifacts; stdout isn’t.
+
+---
+
+## 9) Tiny Go notes we used
+
+- Go 1.22+ allows `for range n` over integers; we rely on Go 1.23 in `go.mod`.  
+- Mutate elements via index (`for i := range slice { &slice[i] }`) to avoid copy pitfalls.
+
+---
+
+## 10) Commands
+
+```bash
+# run all game tests
+go test -v ./internal/game
+
+# run with race detector when we add concurrency later
+go test -race ./...
+```
+
+You’re building solid foundations—small, testable steps that compound. Onward 🚀

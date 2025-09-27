@@ -1,7 +1,6 @@
 package game
 
 import (
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,46 +8,6 @@ import (
 
 	"github.com/AdonaIsium/tcg-engine/internal/cards"
 )
-
-// Helper functions
-func makeDeck(n int) []cards.CardDef {
-	deck := make([]cards.CardDef, 0, n)
-	for i := range n {
-		if i%3 == 2 {
-			deck = append(deck, cards.CardDef{
-				ID:   "s_firebolt_" + strconv.Itoa(i),
-				Name: "Fire Bolt " + strconv.Itoa(i),
-				Type: cards.TypeSpell,
-				Cost: 1,
-				Text: "Deal 2 damage to any target.",
-				SpellEffect: &cards.Effect{
-					Kind:   cards.EffectDamage,
-					Amount: 2,
-					Target: cards.TargetAnyCreature,
-				},
-			})
-		} else {
-			deck = append(deck, cards.CardDef{
-				ID:     "c_unit_" + strconv.Itoa(i),
-				Name:   "Unit " + strconv.Itoa(i),
-				Type:   cards.TypeCreature,
-				Cost:   2,
-				Attack: 2 + (i % 3),
-				Health: 2 + ((i + 1) % 3),
-				Text:   "A basic creature.",
-			})
-		}
-	}
-	return deck
-}
-
-func collectIDs(insts []CardInstance) []string {
-	out := make([]string, len(insts))
-	for i := range insts {
-		out[i] = string(insts[i].InstanceID)
-	}
-	return out
-}
 
 // Tests
 func TestNewGame_Basics(t *testing.T) {
@@ -136,4 +95,62 @@ func TestNewGame_SeedDeterminism(t *testing.T) {
 	assert.Equal(t, collectIDs(g1.Players[0].Deck), collectIDs(g2.Players[0].Deck))
 
 	assert.Equal(t, g1.ID, g2.ID)
+}
+
+func TestNewGame_DifferentSeedsDifferentShuffle(t *testing.T) {
+	d1 := makeDeck(24)
+	d2 := makeDeck(24)
+
+	g1, err := NewGame("p1", "p2", d1, d2, Options{StartingLife: 20, StartingHand: 5, MaxEnergy: 10, Seed: 1})
+	require.NoError(t, err)
+	g2, err := NewGame("p1", "p2", d1, d2, Options{StartingLife: 20, StartingHand: 5, MaxEnergy: 10, Seed: 2})
+	require.NoError(t, err)
+
+	assert.NotEqual(t, collectIDs(g1.Players[0].Deck), collectIDs(g2.Players[1].Deck))
+}
+
+func TestNewGame_InvalidInputs(t *testing.T) {
+	deck := makeDeck(5)
+
+	_, err := NewGame("", "p2", deck, deck, Options{})
+	require.Error(t, err)
+
+	_, err = NewGame("p1", "", deck, deck, Options{})
+	require.Error(t, err)
+
+	_, err = NewGame("p1", "p2", nil, deck, Options{})
+	require.Error(t, err)
+
+	_, err = NewGame("p1", "p2", deck, nil, Options{})
+	require.Error(t, err)
+
+	g, err := NewGame("p1", "p2", makeDeck(6), makeDeck(6), Options{StartingHand: -5, Seed: 77})
+	require.NoError(t, err)
+	assert.Len(t, g.Players[0].Hand, 3)
+	assert.Len(t, g.Players[1].Hand, 3)
+}
+
+func TestNewGame_InstanceIDUniqueness(t *testing.T) {
+	d1 := makeDeck(30)
+	d2 := makeDeck(30)
+
+	g, err := NewGame("p1", "p2", d1, d2, Options{StartingHand: 5, Seed: 123})
+	require.NoError(t, err)
+
+	p0, p1 := g.Players[0], g.Players[1]
+
+	all := make([]string, 0, len(p0.Deck)+len(p0.Hand)+len(p1.Deck)+len(p1.Hand))
+	all = append(all, collectIDs(p0.Deck)...)
+	all = append(all, collectIDs(p0.Hand)...)
+	all = append(all, collectIDs(p1.Deck)...)
+	all = append(all, collectIDs(p1.Hand)...)
+
+	seen := make(map[string]struct{}, len(all))
+	for _, id := range all {
+		_, exists := seen[id]
+		assert.False(t, exists, "duplicate InstanceID: %s", id)
+		seen[id] = struct{}{}
+		assert.NotEmpty(t, id)
+		assert.Contains(t, id, "#", "InstanceID should contain '#': %s", id)
+	}
 }
