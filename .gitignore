@@ -1,0 +1,22 @@
+# Claude Code configuration and session files
+CLAUDE.md
+design_decisions/
+session_recap_document/
+session_recap_documents/
+save-game-state/
+save_game_state/
+
+# Development notes and temporary files
+*.tmp
+*.log
+.DS_Store
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+/bin/
+/dist/
