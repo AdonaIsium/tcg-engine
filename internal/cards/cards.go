@@ -10,11 +10,10 @@ const (
 type EffectKind string
 
 const (
-	EffectDamage     EffectKind = "damage"      // amount -> target (player/creature)
-	EffectHeal       EffectKind = "heal"        // amount -> target (player/creature)
-	EffectDrawCards  EffectKind = "draw_cards"  // amount -> self
-	EffectBuffAttack EffectKind = "buff_attack" // amount -> target creature
-	EffectBuffHealth EffectKind = "buff_health" // amount -> target creature (non-heal perm buff)
+	EffectDamage    EffectKind = "damage"     // amount -> target (player/creature)
+	EffectHeal      EffectKind = "heal"       // amount -> target (player/creature)
+	EffectDrawCards EffectKind = "draw_cards" // amount -> self
+	EffectBuffStats EffectKind = "buff_stats" // attack_buff/health_buff -> target creature
 )
 
 type TargetKind string
@@ -29,18 +28,20 @@ const (
 )
 
 type Effect struct {
-	Kind   EffectKind `json:"kind"`
-	Amount int        `json:"amount,omitempty"`
-	Target TargetKind `json:"target,omitempty"`
+	Kind       EffectKind `json:"kind"`
+	Amount     int        `json:"amount,omitempty"`
+	BuffAttack int        `json:"attack_buff,omitempty"`
+	BuffHealth int        `json:"health_buff,omitempty"`
+	Target     TargetKind `json:"target,omitempty"`
 }
 
 type CardDef struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	Type        Type    `json:"type"`
-	Cost        int     `json:"cost"`
-	Attack      int     `json:"attack,omitempty"`
-	Health      int     `json:"health,omitempty"`
-	Text        string  `json:"text,omitempty"`
-	SpellEffect *Effect `json:"spell_effect,omitempty"`
+	ID      string   `json:"id"`
+	Name    string   `json:"name"`
+	Type    Type     `json:"type"`
+	Cost    int      `json:"cost"`
+	Attack  int      `json:"attack,omitempty"`
+	Health  int      `json:"health,omitempty"`
+	Text    string   `json:"text,omitempty"`
+	Effects []Effect `json:"effects,omitempty"`
 }

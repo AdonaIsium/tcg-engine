@@ -41,13 +41,15 @@ func NewGame(p1ID, p2ID string, d1, d2 []cards.CardDef, opts Options) (*Game, er
 		return InstanceID(fmt.Sprintf("%s#%d", base, nextInstance))
 	}
 
-	toInstances := func(defs []cards.CardDef) []CardInstance {
+	toInstances := func(playerID string, defs []cards.CardDef) []CardInstance {
 		out := make([]CardInstance, 0, len(defs))
 		for i := range defs {
 			def := &defs[i]
 			inst := CardInstance{
 				InstanceID:    newInstanceID(def.ID),
 				Def:           def,
+				Owner:         playerID,
+				Controller:    playerID,
 				CurrentAttack: def.Attack,
 				CurrentHealth: def.Health,
 				SummoningSick: false,
@@ -63,7 +65,7 @@ func NewGame(p1ID, p2ID string, d1, d2 []cards.CardDef, opts Options) (*Game, er
 	}
 
 	drawN := func(ps *PlayerState, n int) {
-		for i := 0; i < n; i++ {
+		for range n {
 			if len(ps.Deck) == 0 {
 				break
 			}
@@ -75,24 +77,24 @@ func NewGame(p1ID, p2ID string, d1, d2 []cards.CardDef, opts Options) (*Game, er
 	}
 
 	p0 := &PlayerState{
-		PlayerID:  p1ID,
-		Life:      opts.StartingLife,
-		Deck:      toInstances(d1),
-		Hand:      nil,
-		Board:     nil,
-		Graveyard: nil,
-		Energy:    0,
-		MaxEnergy: 0,
+		PlayerID:      p1ID,
+		Life:          opts.StartingLife,
+		Deck:          toInstances(p1ID, d1),
+		Hand:          nil,
+		Board:         nil,
+		Graveyard:     nil,
+		CurrentEnergy: 0,
+		MaxEnergy:     0,
 	}
 	p1 := &PlayerState{
-		PlayerID:  p2ID,
-		Life:      opts.StartingLife,
-		Deck:      toInstances(d2),
-		Hand:      nil,
-		Board:     nil,
-		Graveyard: nil,
-		Energy:    0,
-		MaxEnergy: 0,
+		PlayerID:      p2ID,
+		Life:          opts.StartingLife,
+		Deck:          toInstances(p2ID, d2),
+		Hand:          nil,
+		Board:         nil,
+		Graveyard:     nil,
+		CurrentEnergy: 0,
+		MaxEnergy:     0,
 	}
 
 	shuffle(p0.Deck)

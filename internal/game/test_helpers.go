@@ -17,10 +17,12 @@ func makeDeck(n int) []cards.CardDef {
 				Type: cards.TypeSpell,
 				Cost: 1,
 				Text: "Deal 2 damage to any target.",
-				SpellEffect: &cards.Effect{
-					Kind:   cards.EffectDamage,
-					Amount: 2,
-					Target: cards.TargetAnyCreature,
+				Effects: []cards.Effect{
+					{
+						Kind:   cards.EffectDamage,
+						Amount: 2,
+						Target: cards.TargetAnyCreature,
+					},
 				},
 			})
 		} else {
@@ -94,4 +96,10 @@ func strconvItoa(i int) string {
 		buf[p] = d[n%10]
 	}
 	return string(buf[p:])
+}
+
+// helper to quickly make *InstanceID
+func ptrInstance(id string) *InstanceID {
+	inst := InstanceID(id)
+	return &inst
 }

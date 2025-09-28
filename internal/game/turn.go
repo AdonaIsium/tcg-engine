@@ -25,7 +25,7 @@ func (g *Game) StartTurn() {
 	// Energy ramp then refill
 	newCap := min(activePlayer.MaxEnergy+1, g.Options.MaxEnergy)
 	activePlayer.MaxEnergy = newCap
-	activePlayer.Energy = activePlayer.MaxEnergy
+	activePlayer.CurrentEnergy = activePlayer.MaxEnergy
 
 	// Draw step (skipping first player's draw when appropriate)
 	skipFirst := (g.Turn == 1 && g.Active == 0 && !g.Options.FirstPlayerDraws)
@@ -37,7 +37,7 @@ func (g *Game) StartTurn() {
 
 	g.refreshCreatures(activePlayer)
 
-	g.log("start", activePlayer.PlayerID, "start turn: cap=%d energy=%d", activePlayer.MaxEnergy, activePlayer.Energy)
+	g.log("start", activePlayer.PlayerID, "start turn: cap=%d energy=%d", activePlayer.MaxEnergy, activePlayer.CurrentEnergy)
 }
 
 func (g *Game) EndTurn() {
@@ -57,20 +57,20 @@ func (g *Game) Opponent() *PlayerState {
 	return g.Players[1-g.Active]
 }
 
-func (g *Game) Draw(ps *PlayerState, n int) int {
+func (g *Game) Draw(player *PlayerState, n int) int {
 	drawn := 0
 	for range n {
-		if len(ps.Deck) == 0 {
+		if len(player.Deck) == 0 {
 			break
 		}
-		top := len(ps.Deck) - 1
-		card := ps.Deck[top]
-		ps.Deck = ps.Deck[:top]
-		ps.Hand = append(ps.Hand, card)
+		top := len(player.Deck) - 1
+		card := player.Deck[top]
+		player.Deck = player.Deck[:top]
+		player.Hand = append(player.Hand, card)
 		drawn++
 	}
 
-	g.log("draw", ps.PlayerID, "drew %d", drawn)
+	g.log("draw", player.PlayerID, "drew %d", drawn)
 
 	return drawn
 }

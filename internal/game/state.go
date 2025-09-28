@@ -19,6 +19,7 @@ type Options struct {
 	StartingLife     int
 	StartingHand     int
 	MaxEnergy        int
+	MaxBoardSize     int
 	FirstPlayerDraws bool
 	Seed             int64
 }
@@ -26,6 +27,8 @@ type Options struct {
 type CardInstance struct {
 	InstanceID InstanceID
 	Def        *cards.CardDef
+	Owner      string
+	Controller string
 
 	CurrentAttack int
 	CurrentHealth int
@@ -41,8 +44,8 @@ type PlayerState struct {
 	Board     []CardInstance
 	Graveyard []CardInstance
 
-	Energy    int
-	MaxEnergy int
+	CurrentEnergy int
+	MaxEnergy     int
 }
 
 type Event struct {

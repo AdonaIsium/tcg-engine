@@ -33,9 +33,9 @@ func TestNewGame_Basics(t *testing.T) {
 	assert.Equal(t, 20, p1.Life)
 
 	// NOTE: these are looking for the *player* energy/max energy, not the *game* energy/max energy
-	assert.Zero(t, p0.Energy)
+	assert.Zero(t, p0.CurrentEnergy)
 	assert.Zero(t, p0.MaxEnergy)
-	assert.Zero(t, p1.Energy)
+	assert.Zero(t, p1.CurrentEnergy)
 	assert.Zero(t, p1.MaxEnergy)
 
 	assert.Equal(t, 0, g.Active)

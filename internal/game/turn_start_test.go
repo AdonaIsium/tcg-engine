@@ -38,7 +38,7 @@ func TestStartTurn_RampsEnergy_And_DrawsWhenAllowed(t *testing.T) {
 
 	// Energy ramp + refill
 	assert.Equal(t, 1, p0.MaxEnergy)
-	assert.Equal(t, 1, p0.Energy)
+	assert.Equal(t, 1, p0.CurrentEnergy)
 
 	// Draw exactly 1 (since allowed)
 	assert.Equal(t, 4, len(p0.Hand))
@@ -67,7 +67,7 @@ func TestStartTurn_SkipDraw_WhenFirstPlayerDrawsFalse(t *testing.T) {
 
 	// Energy ramp still happens
 	assert.Equal(t, 1, p0.MaxEnergy)
-	assert.Equal(t, 1, p0.Energy)
+	assert.Equal(t, 1, p0.CurrentEnergy)
 
 	// No draw on the very first turn for p0
 	assert.Equal(t, 3, len(p0.Hand))
