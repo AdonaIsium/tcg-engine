@@ -205,7 +205,7 @@ func TestCanPlayCard_Legality(t *testing.T) {
 				ID: "s_buff", Type: cards.TypeSpell, Cost: 1,
 				Text: "Give target creature +2/+2",
 				Effects: []cards.Effect{
-					{Kind: cards.EffectBuffStats, BuffAttack: 2, BuffHealth: 2, Target: cards.TargetAllyCreature},
+					{Kind: cards.EffectBuffStatsPerm, BuffAttack: 2, BuffHealth: 2, Target: cards.TargetAllyCreature},
 				},
 			},
 			targets: []*TargetRef{{InstanceID: &p0.Board[0].InstanceID}},
@@ -511,7 +511,7 @@ func TestPlayCard_BuffEffect(t *testing.T) {
 			Text: "Give target creature +3/+3",
 			Effects: []cards.Effect{
 				{
-					Kind:       cards.EffectBuffStats,
+					Kind:       cards.EffectBuffStatsPerm,
 					BuffAttack: 3,
 					BuffHealth: 3,
 					Target:     cards.TargetAllyCreature,
@@ -540,6 +540,91 @@ func TestPlayCard_BuffEffect(t *testing.T) {
 	assert.Equal(t, initialHealth+3, activePlayer.Board[0].CurrentHealth, "Creature health should increase by 3")
 	assert.Equal(t, initialEnergy-1, activePlayer.CurrentEnergy, "Energy should be reduced by spell cost")
 	assert.Len(t, activePlayer.Hand, 0, "Spell should be removed from hand")
+	assert.Len(t, activePlayer.Graveyard, 1, "Spell should be in graveyard")
+}
+
+func TestPlayCard_TempBuffEffect(t *testing.T) {
+	// === SETUP PHASE ===
+	d1 := smallDeck(10)
+	d2 := smallDeck(10)
+
+	opts := Options{
+		StartingLife:     20,
+		StartingHand:     0,
+		MaxEnergy:        10,
+		FirstPlayerDraws: false,
+		Seed:             42,
+	}
+
+	g, err := NewGame("p0", "p1", d1, d2, opts)
+	require.NoError(t, err)
+
+	activePlayer := g.Players[0]
+
+	// === GAME STATE SETUP ===
+	activePlayer.MaxEnergy = 10
+	activePlayer.CurrentEnergy = 10
+
+	// Place target creature on board
+	targetCreature := CardInstance{
+		InstanceID: "creature#1",
+		Def: &cards.CardDef{
+			ID:     "bear",
+			Name:   "Bear",
+			Type:   cards.TypeCreature,
+			Attack: 2,
+			Health: 2,
+		},
+		Owner:         activePlayer.PlayerID,
+		Controller:    activePlayer.PlayerID,
+		CurrentAttack: 2,
+		CurrentHealth: 2,
+	}
+	activePlayer.Board = append(activePlayer.Board, targetCreature)
+
+	// Create temp buff spell (like Giant Growth in MTG - until end of turn)
+	tempBuffSpell := CardInstance{
+		InstanceID: "tempbuff#1",
+		Def: &cards.CardDef{
+			ID:   "battle_fury",
+			Name: "Battle Fury",
+			Type: cards.TypeSpell,
+			Cost: 1,
+			Text: "Give target creature +3/+3 until end of turn",
+			Effects: []cards.Effect{
+				{
+					Kind:       cards.EffectBuffStatsTemp,
+					BuffAttack: 3,
+					BuffHealth: 3,
+					Target:     cards.TargetAllyCreature,
+				},
+			},
+		},
+		Owner:      activePlayer.PlayerID,
+		Controller: activePlayer.PlayerID,
+	}
+	activePlayer.Hand = append(activePlayer.Hand, tempBuffSpell)
+
+	// === RECORD INITIAL STATE ===
+	initialAttack := activePlayer.Board[0].CurrentAttack
+	initialHealth := activePlayer.Board[0].CurrentHealth
+	initialEnergy := activePlayer.CurrentEnergy
+
+	// === EXECUTE ===
+	targets := []*TargetRef{
+		{InstanceID: &activePlayer.Board[0].InstanceID},
+	}
+	err = g.PlayCard(activePlayer.PlayerID, 0, targets)
+	require.NoError(t, err, "PlayCard should succeed")
+
+	// === ASSERTIONS ===
+	assert.Equal(t, initialAttack+3, activePlayer.Board[0].CurrentAttack, "Creature attack should increase by 3")
+	assert.Equal(t, initialHealth+3, activePlayer.Board[0].CurrentHealth, "Creature health should increase by 3")
+	assert.Equal(t, 3, activePlayer.Board[0].TempAttackBuff, "Temp attack buff should be 3")
+	assert.Equal(t, 3, activePlayer.Board[0].TempHealthBuff, "Temp health buff should be 3")
+	assert.Equal(t, 0, activePlayer.Board[0].PermAttackBuff, "Perm attack buff should be 0")
+	assert.Equal(t, 0, activePlayer.Board[0].PermHealthBuff, "Perm health buff should be 0")
+	assert.Equal(t, initialEnergy-1, activePlayer.CurrentEnergy, "Energy should be reduced by spell cost")
 	assert.Len(t, activePlayer.Graveyard, 1, "Spell should be in graveyard")
 }
 

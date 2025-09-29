@@ -29,10 +29,11 @@ type EffectContext struct {
 
 // effectResolver is our function map - maps effect kinds to their implementation
 var effectResolver = map[cards.EffectKind]func(*EffectContext) error{
-	cards.EffectDamage:    applyDamage,
-	cards.EffectHeal:      applyHealing,
-	cards.EffectDrawCards: applyDrawCards,
-	cards.EffectBuffStats: applyBuffStats,
+	cards.EffectDamage:        applyDamage,
+	cards.EffectHeal:          applyHealing,
+	cards.EffectDrawCards:     applyDrawCards,
+	cards.EffectBuffStatsPerm: applyBuffStatsPerm,
+	cards.EffectBuffStatsTemp: applyBuffStatsTemp,
 }
 
 func (g *Game) autoPopulateTarget(effect cards.Effect, providedTarget *TargetRef, caster *PlayerState) *TargetRef {
@@ -107,14 +108,16 @@ func (g *Game) PlayCard(playerID string, handIdx int, targets []*TargetRef) erro
 		}
 	}
 
-	// TODO: Step 7 - Check for state-based effects (creature death, etc.)
-	// HINT: This might be a separate function like g.checkStateBasedEffects()
+	// Step 7 - Check for state-based effects (creature death, game end, etc.)
+	gameEnded, endMessage := g.checkStateBasedEffects()
+	if gameEnded {
+		g.GameEnded = true
+		g.Winner = endMessage
+		g.log("state_based_effects", "", "Game ended: %s", endMessage)
+		return nil // PlayCard succeeds even if game ends
+	}
 
 	return nil
-}
-
-func (g *Game) checkStateBasedEffects() {
-	// TODO: Figure out what goes here
 }
 
 // Apply damage to player or creature
@@ -128,7 +131,8 @@ func applyDamage(ctx *EffectContext) error {
 
 	// Try creature damage
 	if creature := ctx.Game.getTargetCreature(ctx.Target); creature != nil {
-		creature.CurrentHealth -= ctx.Amount
+		creature.CurrentDamage += ctx.Amount
+		creature.CurrentHealth = creature.Def.Health + creature.PermHealthBuff + creature.TempHealthBuff - creature.CurrentDamage
 		ctx.Game.log("damage", ctx.Caster.PlayerID, "%d damage dealt to %s", ctx.Amount, creature.Def.Name)
 
 		// Check for creature death
@@ -160,14 +164,28 @@ func applyDrawCards(ctx *EffectContext) error {
 	return fmt.Errorf("applyDrawCards: %w", ErrPlayerNotFound)
 }
 
-func applyBuffStats(ctx *EffectContext) error {
+func applyBuffStatsPerm(ctx *EffectContext) error {
 	if creature := ctx.Game.getTargetCreature(ctx.Target); creature != nil {
-		creature.CurrentAttack += ctx.BuffAttack
-		creature.CurrentHealth += ctx.BuffHealth
-		ctx.Game.log("buff_creature", ctx.Caster.PlayerID, "+%d/+%d buff applied to %s", ctx.BuffAttack, ctx.BuffHealth, creature.InstanceID)
+		creature.PermAttackBuff += ctx.BuffAttack
+		creature.PermHealthBuff += ctx.BuffHealth
+		creature.CurrentAttack = creature.Def.Attack + creature.PermAttackBuff + creature.TempAttackBuff
+		creature.CurrentHealth = creature.Def.Health + creature.PermHealthBuff + creature.TempHealthBuff
+		ctx.Game.log("buff_creature_perm", ctx.Caster.PlayerID, "+%d/+%d permanent buff applied to %s", ctx.BuffAttack, ctx.BuffHealth, creature.InstanceID)
 		return nil
 	}
-	return fmt.Errorf("applyBuffStats: %w", ErrInvalidTarget)
+	return fmt.Errorf("applyBuffStatsPerm: %w", ErrInvalidTarget)
+}
+
+func applyBuffStatsTemp(ctx *EffectContext) error {
+	if creature := ctx.Game.getTargetCreature(ctx.Target); creature != nil {
+		creature.TempAttackBuff += ctx.BuffAttack
+		creature.TempHealthBuff += ctx.BuffHealth
+		creature.CurrentAttack = creature.Def.Attack + creature.PermAttackBuff + creature.TempAttackBuff
+		creature.CurrentHealth = creature.Def.Health + creature.PermHealthBuff + creature.TempHealthBuff
+		ctx.Game.log("buff_creature_temp", ctx.Caster.PlayerID, "+%d/+%d temporary buff applied to %s", ctx.BuffAttack, ctx.BuffHealth, creature.InstanceID)
+		return nil
+	}
+	return fmt.Errorf("applyBuffStatsTemp: %w", ErrInvalidTarget)
 }
 
 // Helper functions for effect targeting - assume validation already passed
@@ -200,6 +218,39 @@ func (g *Game) getTargetCreature(targetRef *TargetRef) *CardInstance {
 	// Should never happen if validation worked
 	g.log("error", "", "getTargetCreature failed to find creature %s", *targetRef.InstanceID)
 	return nil
+}
+
+func (g *Game) checkStateBasedEffects() (bool, string) {
+	p1Alive := g.Players[0].Life > 0
+	p2Alive := g.Players[1].Life > 0
+
+	// Check for game-ending conditions first
+	switch {
+	case !p1Alive && !p2Alive:
+		g.log("game_end", "", "Both players died simultaneously - game is a draw!")
+		return true, "Draw!"
+	case p1Alive && !p2Alive:
+		winner := g.Players[0].Name
+		g.log("game_end", g.Players[0].PlayerID, "%s wins! %s died with %d life", winner, g.Players[1].Name, g.Players[1].Life)
+		return true, fmt.Sprintf("%s a winner is you!", winner)
+	case !p1Alive && p2Alive:
+		winner := g.Players[1].Name
+		g.log("game_end", g.Players[1].PlayerID, "%s wins! %s died with %d life", winner, g.Players[0].Name, g.Players[0].Life)
+		return true, fmt.Sprintf("%s a winner is you!", winner)
+	}
+
+	// Check for creature deaths (iterate backwards to handle removal safely)
+	for i := range g.Players {
+		for j := len(g.Players[i].Board) - 1; j >= 0; j-- {
+			creature := &g.Players[i].Board[j]
+			if creature.CurrentHealth <= 0 {
+				g.log("creature_death", g.Players[i].PlayerID, "%s (%s) died with %d health", creature.Def.Name, creature.InstanceID, creature.CurrentHealth)
+				g.moveToGraveyard(creature, "life reached 0")
+			}
+		}
+	}
+
+	return false, ""
 }
 
 func (g *Game) CanPlayCard(playerID string, handIdx int, targets []*TargetRef) error {

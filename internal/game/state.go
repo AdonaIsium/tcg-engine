@@ -13,6 +13,15 @@ const (
 	ZoneGraveyard Zone = "graveyard"
 )
 
+type CombatPhase string
+
+const (
+	PhaseNone      CombatPhase = "none"
+	PhaseAttackers CombatPhase = "declare_attackers"
+	PhaseBlockers  CombatPhase = "declare_blockers"
+	PhaseDamage    CombatPhase = "resolve_damage"
+)
+
 type InstanceID string
 
 type Options struct {
@@ -30,14 +39,26 @@ type CardInstance struct {
 	Owner      string
 	Controller string
 
+	// Permanent buffs applied to attack/health
+	PermAttackBuff int
+	PermHealthBuff int
+
+	// Temporary effects to attack/health
+	TempAttackBuff int
+	TempHealthBuff int
+	CurrentDamage  int
+
+	// Current calculated values for attack/health
 	CurrentAttack int
 	CurrentHealth int
+
 	SummoningSick bool
 	Exhausted     bool
 }
 
 type PlayerState struct {
 	PlayerID  string
+	Name      string
 	Life      int
 	Deck      []CardInstance
 	Hand      []CardInstance
@@ -56,13 +77,20 @@ type Event struct {
 }
 
 type Game struct {
-	ID      string
-	Players [2]*PlayerState
-	Active  int
-	Turn    int
-	Options Options
-	Rand    randSource
-	Log     []Event
+	ID        string
+	Players   [2]*PlayerState
+	Active    int
+	Turn      int
+	Options   Options
+	Rand      randSource
+	Log       []Event
+	GameEnded bool
+	Winner    string
+
+	// Combat state tracking
+	CombatPhase   CombatPhase
+	AttackingIDs  []InstanceID
+	BlockingPairs map[InstanceID]InstanceID // attacker -> blocker
 }
 
 type randSource interface {

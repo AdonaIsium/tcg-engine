@@ -10,10 +10,11 @@ const (
 type EffectKind string
 
 const (
-	EffectDamage    EffectKind = "damage"     // amount -> target (player/creature)
-	EffectHeal      EffectKind = "heal"       // amount -> target (player/creature)
-	EffectDrawCards EffectKind = "draw_cards" // amount -> self
-	EffectBuffStats EffectKind = "buff_stats" // attack_buff/health_buff -> target creature
+	EffectDamage        EffectKind = "damage"          // amount -> target (player/creature)
+	EffectHeal          EffectKind = "heal"            // amount -> target (player/creature)
+	EffectDrawCards     EffectKind = "draw_cards"      // amount -> self
+	EffectBuffStatsPerm EffectKind = "buff_stats_perm" // attack_buff/health_buff -> target creature
+	EffectBuffStatsTemp EffectKind = "buff_stats_temp" // attack_buff/health_buff -> target creature
 )
 
 type TargetKind string

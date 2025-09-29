@@ -76,8 +76,11 @@ func NewGame(p1ID, p2ID string, d1, d2 []cards.CardDef, opts Options) (*Game, er
 		}
 	}
 
+	// TODO: In the future, accept player names as parameters to NewGame
+	// For now, use default names for display purposes
 	p0 := &PlayerState{
 		PlayerID:      p1ID,
+		Name:          "Player 1", // Default name - TODO: make this configurable
 		Life:          opts.StartingLife,
 		Deck:          toInstances(p1ID, d1),
 		Hand:          nil,
@@ -88,6 +91,7 @@ func NewGame(p1ID, p2ID string, d1, d2 []cards.CardDef, opts Options) (*Game, er
 	}
 	p1 := &PlayerState{
 		PlayerID:      p2ID,
+		Name:          "Player 2", // Default name - TODO: make this configurable
 		Life:          opts.StartingLife,
 		Deck:          toInstances(p2ID, d2),
 		Hand:          nil,
@@ -108,6 +112,15 @@ func NewGame(p1ID, p2ID string, d1, d2 []cards.CardDef, opts Options) (*Game, er
 		Options: opts,
 		Rand:    &randAdapter{r: r},
 		Log:     nil,
+
+		// Initialize game state
+		GameEnded: false,
+		Winner:    "",
+
+		// Initialize combat state
+		CombatPhase:   PhaseNone,
+		AttackingIDs:  make([]InstanceID, 0),
+		BlockingPairs: make(map[InstanceID]InstanceID),
 	}
 
 	if opts.StartingHand > 0 {

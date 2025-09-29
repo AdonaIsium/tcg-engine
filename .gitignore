@@ -5,6 +5,8 @@ session_recap_document/
 session_recap_documents/
 save-game-state/
 save_game_state/
+next_session_prompt.md
+internal/game/combat.go
 
 # Development notes and temporary files
 *.tmp

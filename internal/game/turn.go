@@ -46,6 +46,7 @@ func (g *Game) EndTurn() {
 		return
 	}
 	g.log("end", g.Players[g.Active].PlayerID, "end turn")
+	g.CleanupTurn()
 	g.Active = 1 - g.Active
 }
 
@@ -85,6 +86,32 @@ func (g *Game) refreshCreatures(ps *PlayerState) {
 			}
 		}
 	}
+}
+
+func (g *Game) refreshCreatureHealth() {
+	for i := range g.Players {
+		for j := range g.Players[i].Board {
+			card := &g.Players[i].Board[j]
+
+			if card.CurrentDamage > 0 || card.TempAttackBuff != 0 || card.TempHealthBuff != 0 {
+				g.log("refresh_creature_before", g.Players[i].PlayerID, "refreshing %s (%s) attack/health from %d/%d\nbase_attack = %d, base_health = %d\nperm_attack_buff = %d, perm_health_buff = %d\ncurrent temp effects: damage = %d, temp_attack_buff = %d, temp_health_buff = %d", card.Def.Name, card.InstanceID, card.CurrentAttack, card.CurrentHealth, card.Def.Attack, card.Def.Health, card.PermAttackBuff, card.PermHealthBuff, card.CurrentDamage, card.TempAttackBuff, card.TempHealthBuff)
+
+				// Reset temporary status effects
+				card.CurrentDamage = 0
+				card.TempAttackBuff = 0
+				card.TempHealthBuff = 0
+
+				// Recalculate attack/health using only permanent statuses
+				card.CurrentAttack = card.Def.Attack + card.PermAttackBuff
+				card.CurrentHealth = card.Def.Health + card.PermHealthBuff
+				g.log("refresh_creature_after", g.Players[i].PlayerID, "%s (%s) attack/health refreshed to %d/%d", card.Def.Name, card.InstanceID, card.CurrentAttack, card.CurrentHealth)
+			}
+		}
+	}
+}
+
+func (g *Game) CleanupTurn() {
+	g.refreshCreatureHealth()
 }
 
 func (g *Game) log(eventType, playerID, format string, args ...any) {
